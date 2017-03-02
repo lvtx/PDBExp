@@ -219,7 +219,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="&quot;$(VSInstallDir)\DIA SDK\include&quot;"
+				AdditionalIncludeDirectories="&quot;$(SolutionDir)..\..\PDL\trunk\include&quot;;&quot;$(VSInstallDir)\DIA SDK\include&quot;"
 				PreprocessorDefinitions="_WIN32_WINNT=0x0501"
 				ExceptionHandling="0"
 				RuntimeLibrary="0"
