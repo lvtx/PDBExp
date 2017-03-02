@@ -1,14 +1,11 @@
 ///////////////////////////////////////////////////////////////////////////////
-// FileName:    PEAnalyzer.h
-// Created:     2008/10/30
-// Author:      titilima
-// CopyRight:   Titi Studio (?) 2001-2013
+// 文件名：  PEAnalyzer.h
+// 创建时间：2008-10-30
+// 作者：    李马
+// 版权所有：Titi Studio (?) 2001-2008
 //-----------------------------------------------------------------------------
-// Information: PE Analyzer
+// 说明：    PE 分析器
 ///////////////////////////////////////////////////////////////////////////////
-
-#ifndef PEANALYZER_H
-#define PEANALYZER_H
 
 #pragma once
 
@@ -35,5 +32,3 @@ private:
     HANDLE m_hMapping;
     PVOID m_pvBase;
 };
-
-#endif // PEANALYZER_H

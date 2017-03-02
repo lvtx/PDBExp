@@ -1,20 +1,16 @@
 ///////////////////////////////////////////////////////////////////////////////
-// FileName:    diacommon.h
-// Created:     2009/07/20
-// Author:      titilima
-// CopyRight:   Titi Studio (?) 2001-2013
+// 文件名：  diacommon.h
+// 创建时间：2009/07/20
+// 作者：    李马
+// 版权所有：Titi Studio (?) 2001-2009
 //-----------------------------------------------------------------------------
-// Information: DIA Common Header
+// 说明：    DIA 公共头文件
 ///////////////////////////////////////////////////////////////////////////////
-
-#ifndef DIACOMMON_H
-#define DIACOMMON_H
 
 #pragma once
 
 #include <dia2.h>
 #include <cvconst.h>
+#include <pdl_com.h>
 
-typedef CComPtr<IDiaSymbol> SymPtr;
-
-#endif // DIACOMMON_H
+typedef LComPtr<IDiaSymbol> SymPtr;

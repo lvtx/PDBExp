@@ -1,41 +1,30 @@
 ///////////////////////////////////////////////////////////////////////////////
-// FileName:    SettingDlg.h
-// Created:     2007/11/12
-// Author:      titilima
-// CopyRight:   Titi Studio (?) 2001-2013
+// 文件名：  SettingDlg.h
+// 创建时间：2007-11-12
+// 作者：    李马
+// 版权所有：Titi Studio (?) 2001-2007
 //-----------------------------------------------------------------------------
-// Information: Settings Dialog
+// 说明：    设置对话框
 ///////////////////////////////////////////////////////////////////////////////
-
-#ifndef SETTINGDLG_H
-#define SETTINGDLG_H
 
 #pragma once
 
-class CSettingDlg : public CDialogImpl<CSettingDlg>, public CWinDataExchange<CSettingDlg>
+#include <pdl_window.h>
+#include <pdl_parser.h>
+#include <pdl_commctrl.h>
+
+class CSettingDlg : public LDialog
 {
 public:
-    CSettingDlg(void);
-    enum { IDD = IDD_DLG_SETTING };
-public:
-    BEGIN_MSG_MAP_EX(CSettingDlg)
-        MSG_WM_CLOSE(OnClose)
-        MSG_WM_INITDIALOG(OnInitDialog)
-
-        COMMAND_ID_HANDLER_EX(IDCANCEL, OnOKCancel)
-        COMMAND_ID_HANDLER_EX(IDOK, OnOKCancel)
-        COMMAND_ID_HANDLER_EX(IDC_BTN_OPEN, OnOpen)
-    END_MSG_MAP()
-    BEGIN_DDX_MAP(CSettingDlg)
-        DDX_CONTROL_HANDLE(IDC_SPIN, m_spin)
-    END_DDX_MAP()
+    CSettingDlg(__in LIniParser* pIni);
 private:
-    void OnClose(void);
-    BOOL OnInitDialog(CWindow wndFocus, LPARAM lInitParam);
-    void OnOKCancel(UINT uNotifyCode, int nID, CWindow wndCtl);
-    void OnOpen(UINT uNotifyCode, int nID, CWindow wndCtl);
+    PDL_DECLARE_MSGMAP();
+    DECLARE_COMMAND_HANDLER(OnCommand);
+    DECLARE_CLOSE_HANDLER(OnClose);
+    DECLARE_INITDIALOG_HANDLER(OnInitDialog);
+    void OnOk(void);
+    void OnOpen(void);
 private:
-    CUpDownCtrl m_spin;
+    LIniParser* m_pIni;
+    LUpDown     m_spin;
 };
-
-#endif // SETTINGDLG_H

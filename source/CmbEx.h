@@ -1,40 +1,41 @@
 ///////////////////////////////////////////////////////////////////////////////
-// FileName:    CmbEx.h
-// Created:     2013/11/05
-// Author:      titilima
-// CopyRight:   Titi Studio (?) 2001-2013
+// 文件名：  CmbEx.h
+// 创建时间：2007-10-28
+// 作者：    李马
+// 版权所有：Titi Studio (?) 2001-2007
 //-----------------------------------------------------------------------------
-// Information: PDB Explorer ComboBox
+// 说明：    PDB Explorer ComboBox类
 ///////////////////////////////////////////////////////////////////////////////
-
-#ifndef CMBEX_H
-#define CMBEX_H
 
 #pragma once
 
-class CCmbEx : public CWindowImpl<CCmbEx, CComboBox>
+#include <pdl_window.h>
+#include <pdl_ctrl.h>
+
+class CLbEx : public LListBox, protected LSubclassWnd
 {
+    PDL_DECLARE_WINCLASS(CLbEx)
 public:
-    CCmbEx(void);
-    DECLARE_WND_CLASS(_T("PDBExp_ComboBox"))
-public:
-    BOOL Create(DWORD dwStyle, LPRECT lpRect, HWND hWndParent, UINT nID);
-public:
-    int FindString(PCTSTR lpszString);
-public:
-    BEGIN_MSG_MAP_EX(CCmbEx)
-        MSG_WM_KEYDOWN(OnKeyDown)
-        COMMAND_CODE_HANDLER_EX(EN_UPDATE, OnEditUpdate)
-    ALT_MSG_MAP(1)
-        MSG_WM_LBUTTONDBLCLK(OnListLButtonDblClk)
-    END_MSG_MAP()
-private:
-    void OnEditUpdate(UINT uNotifyCode, int nID, CWindow wndCtl);
-    void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
-    void OnListLButtonDblClk(UINT nFlags, CPoint point);
-private:
-    CContainedWindowT<CListBox> m_list;
-    CEdit m_edit;
+    CLbEx& operator=(__in HWND hWnd);
+protected:
+    PDL_DECLARE_MSGMAP();
+    DECLARE_LBUTTONDBLCLK_HANDLER(OnLButtonDblClk);
 };
 
-#endif // CMBEX_H
+class CCmbEx : public LComboBox, protected LSubclassWnd
+{
+    PDL_DECLARE_WINCLASS(CCmbEx)
+public:
+    BOOL Create(__in PCTSTR lpWindowName, __in DWORD dwStyle,
+        __in LPCRECT lpRect, __in HWND hWndParent, __in UINT nID,
+        __in PVOID lpParam);
+public:
+    int FindString(__in LPCTSTR lpszString);
+protected:
+    PDL_DECLARE_MSGMAP();
+    DECLARE_COMMAND_HANDLER(OnCommand);
+    DECLARE_KEYDOWN_HANDLER(OnKeyDown);
+private:
+    CLbEx m_list;
+    LEdit m_edit;
+};

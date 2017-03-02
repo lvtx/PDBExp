@@ -9,33 +9,31 @@
 
 #pragma once
 
+#include <pdl_window.h>
+#include <pdl_commctrl.h>
 #include "DiaHelper.h"
 #include "DetailView.h"
 
-#include "resource.h"
-
-class CModifyDlg : public CDialogImpl<CModifyDlg>
+class CModifyDlg : public LDialog, private CEventHandler
 {
 public:
     CModifyDlg(CDiaHelper* pDia, IDiaSymbol* pSymbol);
-    enum { IDD = IDD_DLG_MODIFY };
 private:
     static BOOL cbAddMember(IDiaSymbol* pCurSymbol, LPVOID pParam);
     static BOOL cbEnumModify(IDiaSymbol* pCurSymbol, LPVOID pParam);
     void DumpModified(void);
 private:
-    LRESULT OnNotify(int idCtrl, LPNMHDR pnmh, BOOL& bHandled);
-private:
-    void OnCommand(WORD wNotifyCode, WORD wID, HWND hWndCtrl, BOOL& bHandled);
+    PDL_DECLARE_MSGMAP();
+    DECLARE_CLOSE_HANDLER(OnClose);
+    DECLARE_COMMAND_HANDLER(OnCommand);
+    DECLARE_INITDIALOG_HANDLER(OnInitDialog);
+    DECLARE_NOTIFY_HANDLER(OnNotify);
     void OnBtnAll(void);
     void OnBtnCopy(void);
 private:
-    void OnClose(BOOL& bHandled);
-    BOOL OnInitDialog(HWND hCtrlFocus, LPARAM lParam, BOOL& bHandled);
+    void OnNavigateComplete(void);
 private:
-    void OnDocumentComplete(void);
-private:
-    CListViewCtrl m_list;
+    LListView m_list;
     CDetailView m_view;
     IDiaSymbol* m_pSymbol;
     CDiaHelper* m_pDia;

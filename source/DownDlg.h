@@ -9,33 +9,34 @@
 
 #pragma once
 
+#include <pdl_window.h>
+#include <pdl_ctrl.h>
+#include <pdl_parser.h>
 #include "DownLoader.h"
 #include "PEAnalyzer.h"
 
-#include "resource.h"
-
-class CDownDlg : public CDialogImpl<CDownDlg>
+class CDownDlg : public LDialog
 {
 public:
-    CDownDlg(CDownLoader* pDnLdr);
+    CDownDlg(__in CDownLoader* pDnLdr, __in LIniParser* pIni);
     ~CDownDlg(void);
-    enum { IDD = IDD_DLG_DOWNLOAD };
 private:
     void AddInfo(__in PCTSTR lpInfo);
     void ClearInfo(void);
 private:
-    void OnCommand(WORD wNotifyCode, WORD wID, HWND hWndCtrl, BOOL& bHandled);
+    PDL_DECLARE_MSGMAP();
+    DECLARE_CLOSE_HANDLER(OnClose);
+    DECLARE_COMMAND_HANDLER(OnCommand);
+    DECLARE_INITDIALOG_HANDLER(OnInitDialog);
     void OnEditUpdate(WORD wID);
     void OnBtnOpen1(void);
     void OnBtnOpen2(void);
     void OnBtnDownLoad(void);
     void OnOK(void);
 private:
-    void OnClose(BOOL& bHandled);
-    BOOL OnInitDialog(HWND hCtrlFocus, LPARAM lParam, BOOL& bHandled);
-private:
     CDownLoader* m_pDnLdr;
-    CEdit m_edtInfo;
+    LIniParser* m_pIni;
+    LEdit m_edtInfo;
     SIGNTYPE m_type;
     LPTSTR m_pSign;
     LPTSTR m_pFile;

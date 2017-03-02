@@ -1,40 +1,40 @@
 ///////////////////////////////////////////////////////////////////////////////
-// FileName:    Version.h
-// Created:     2007/11/01
-// Author:      titilima
-// CopyRight:   Titi Studio (?) 2001-2013
+// 文件名：  Version.h
+// 创建时间：2007-11-1
+// 作者：    李马
+// 版权所有：Titi Studio (?) 2001-2007
 //-----------------------------------------------------------------------------
-// Information: Version Information
+// 说明：    版本说明
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
-#define PDBEXP_VER          1.2.0.7
-#define PDBEXP_RCVER        1,2,0,7
-#define PDBEXP_VERSTR       "1.2.0.7"
-#define PDBEXP_RCVERSTR     "1,2,0,7"
-
-#define PDBEXP_WNDCAPTION   _T("PDB Explorer v")##_T(PDBEXP_VERSTR)
+#define BLDNUM  "226"
+#define PDBEXP_WNDCAPTION           _T("PDB Explorer v1.11.")##_T(BLDNUM)
 
 ///////////////////////////////////////////////////////////////////////////////
-// Version Logs
-//=============================================================================
-// v1.2.0
-//   * Port to WTL.
+// 升级记录
+// v1.11.226 - 2015.09.15
+//            * PDL Version: 0.04.176
+//            * 修正 CCmbEx::FindString bug。
 // v1.11.223 - 2009.08.18
 //            * PDL Version: 0.02.128
 //            * 开源版本。
 // v1.10.0217 - 2009.07.27
-//            * PDL Version: 0.01.117
+//            * PDL Version: 0.01.108
+//            * SVN Version: 79
+//            * 开源版本。
 //            * 增加对 typedef 和 class 的支持。
 //            * 下载 PDB 增加对 NB10 签名的支持。
 //            * 将数据类型抽象为 CSym 及各个子类。
 //            * 修正枚举类型的 bug。
 // v1.03.039 - 2009.04.15
+//           * PDL Version: 78
 //           * 优化了代码的大小。
 //           * 优化了下载 PDB 文件功能的用户体验。
 //           * 对 PE 映像中取得的 PDB 文件名进行了路径判断。
 // v1.02.035 - 2008.11.19
+//           * PDL Version: 51
 //           * 工程更新为 VS2008。
 //           * 解决 DIA 库版本不兼容的问题。
 //           * 可自由下载 PDB 文件。

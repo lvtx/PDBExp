@@ -1,92 +1,98 @@
 ///////////////////////////////////////////////////////////////////////////////
-// FileName:    DetailView.cpp
-// Created:     2007/11/02
-// Author:      titilima
-// CopyRight:   Titi Studio (?) 2001-2014
+// 文件名：  DetailView.cpp
+// 创建时间：2007-11-2
+// 作者：    李马
+// 版权所有：Titi Studio (?) 2001-2007
 //-----------------------------------------------------------------------------
-// Information: Symbole Detail View Class
+// 说明：    符号详细信息类实现
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "LvStd.h"
+#include <pdl_base.h>
+#include <pdl_module.h>
 #include "DetailView.h"
-#include "Utilities.h"
+#include <pdl_file.h>
+#include <ExDispid.h>
 
-static HRESULT GetDocument(CDetailView *dv, IDispatch **ppDoc)
+#include "resource.h"
+
+///////////////////////////////////////////////////////////////////////////////
+// CEventHandler
+
+void CEventHandler::OnNavigateComplete(void)
 {
-    CComPtr<IWebBrowser2> wb2;
-    HRESULT hr = dv->QueryControl(&wb2);
-    if (FAILED(hr)) {
-        return hr;
-    }
-
-    return wb2->get_Document(ppDoc);
 }
 
-static HRESULT GetBody(CDetailView *dv, IHTMLElement **ppBody)
+void CEventHandler::OnSymbolChange(DWORD id)
 {
-    AdapterPtr<IHTMLDocument2, IDispatch> doc;
-    HRESULT hr = GetDocument(dv, &doc);
-    if (FAILED(hr)) {
-        return hr;
-    }
-
-    return doc->get_body(ppBody);
 }
 
-CDetailView::CDetailView(void)
+void CEventHandler::OnNewFileDrop(LPCWSTR lpFileName)
 {
-    // Nothing
 }
 
-void CDetailView::AddText(PCWSTR pszText)
+///////////////////////////////////////////////////////////////////////////////
+// CDetailView
+
+CDetailView::CDetailView(void) : LAxCtrl(), m_pEventHandler(NULL)
+                               , m_pCurSymbol(NULL)
 {
-    CComPtr<IHTMLElement> body;
-    if (SUCCEEDED(GetBody(this, &body))) {
-        CComBSTR bsText(pszText);
-        body->insertAdjacentHTML(CComBSTR("beforeEnd"), bsText);
-    }
+    m_bEnable = TRUE;
+}
+
+void CDetailView::AddText(__in PCWSTR pszText)
+{
+    LBStr bsText = pszText;
+    m_pBody->insertAdjacentHTML(L"beforeEnd", bsText);
 }
 
 void CDetailView::Clear(void)
 {
-    CComPtr<IHTMLElement> body;
-    if (SUCCEEDED(GetBody(this, &body))) {
-        body->put_innerText(CComBSTR());
-    }
-
+    m_pBody->put_innerText(L"");
     SetCurrentSymbol(NULL);
 }
 
 void CDetailView::Copy(void)
 {
-    AdapterPtr<IHTMLDocument2, IDispatch> doc;
-    if (FAILED(GetDocument(this, &doc))) {
-        return;
-    }
+    LComPtr<IHTMLSelectionObject> pSel = NULL;
+    m_pDoc->get_selection(&pSel);
 
-    CComPtr<IHTMLSelectionObject> pSel;
-    doc->get_selection(&pSel);
+    LComPtr<IHTMLTxtRange> pTxt = NULL;
+    pSel->createRange(reinterpret_cast<IDispatch**>(&pTxt));
 
-    AdapterPtr<IHTMLTxtRange, IDispatch> pTxt;
-    pSel->createRange(&pTxt);
-
-    CComBSTR bsSel;
+    LBStr bsSel;
     pTxt->get_text(&bsSel);
-    if (!IsEmpty(bsSel)) {
-        CopyToClipboard(*this, bsSel);
-    }
+    if (bsSel.IsEmpty())
+        return;
+
+	OpenClipboard();
+	EmptyClipboard();
+	HGLOBAL hMem = GlobalAlloc(GHND | GMEM_SHARE,
+		(bsSel.GetLength() + 1) * sizeof(WCHAR));
+    PWSTR pStr = (PWSTR)GlobalLock(hMem);
+    lstrcpyW(pStr, bsSel);
+    GlobalUnlock(hMem);
+	SetClipboardData(CF_UNICODETEXT, hMem);
+    GlobalFree(hMem);
+	CloseClipboard();
 }
 
 void CDetailView::CopyAll(void)
 {
-    CComPtr<IHTMLElement> body;
-    if (SUCCEEDED(GetBody(this, &body))) {
-        CComBSTR bsSel;
-        body->get_innerText(&bsSel);
-        if (!IsEmpty(bsSel)) {
-            CopyToClipboard(*this, bsSel);
-        }
-    }
+    LBStr bsSel;
+    m_pBody->get_innerText(&bsSel);
+    if (bsSel.IsEmpty())
+        return;
+
+	OpenClipboard();
+	EmptyClipboard();
+	HGLOBAL hMem = GlobalAlloc(GHND | GMEM_SHARE,
+		(bsSel.GetLength() + 1) * sizeof(WCHAR));
+    PWSTR pStr = (PWSTR)GlobalLock(hMem);
+    lstrcpyW(pStr, bsSel);
+    GlobalUnlock(hMem);
+	SetClipboardData(CF_UNICODETEXT, hMem);
+    GlobalFree(hMem);
+	CloseClipboard();
 }
 
 IDiaSymbol* CDetailView::DetachCurrentSymbol(void)
@@ -96,9 +102,9 @@ IDiaSymbol* CDetailView::DetachCurrentSymbol(void)
     return pRet;
 }
 
-void CDetailView::Finalize(void)
+void CDetailView::EnableHyperLink(__in BOOL bEnable)
 {
-    m_pCurSymbol.Release();
+    m_bEnable = bEnable;
 }
 
 IDiaSymbol* CDetailView::GetCurrentSymbol(void)
@@ -106,33 +112,40 @@ IDiaSymbol* CDetailView::GetCurrentSymbol(void)
     return m_pCurSymbol;
 }
 
-BOOL CDetailView::GetText(string *pStr)
+BOOL CDetailView::GetText(__out LStringA* pStr)
 {
-    CComPtr<IWebBrowser2> wb2;
-    QueryControl(&wb2);
+    LBStr bsSel;
+    m_pBody->get_innerText(&bsSel);
+    if (bsSel.IsEmpty())
+        return FALSE;
 
-    AdapterPtr<IHTMLDocument2, IDispatch> doc;
-    wb2->get_Document(&doc);
-
-    AdapterPtr<IHTMLElement, IHTMLElement> body;
-    doc->get_body(&body);
-
-    CComBSTR bsSel;
-    body->get_innerText(&bsSel);
-
-    USES_CONVERSION;
-    pStr->assign(W2CA(bsSel));
-    return !pStr->empty();
+    *pStr = bsSel;
+    return TRUE;
 }
 
 void CDetailView::SetCurrentSymbol(__in IDiaSymbol* pCurSymbol)
 {
+    if (NULL != m_pCurSymbol)
+        m_pCurSymbol->Release();
     m_pCurSymbol = pCurSymbol;
+    if (NULL != m_pCurSymbol)
+        m_pCurSymbol->AddRef();
+}
+
+BOOL CDetailView::SetEventHandler(__in CEventHandler* pEventHandler)
+{
+    if (NULL != m_pEventHandler)
+        return FALSE;
+    m_pEventHandler = pEventHandler;
+    return TRUE;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#if 0
+PDL_BEGIN_MSGMAP(CDetailView)
+    PROCESS_CREATE(OnCreate)
+    PROCESS_DESTROY(OnDestroy)
+PDL_END_MSGMAP(LAxCtrl)
 
 int CDetailView::OnCreate(LPCREATESTRUCT lpCreateStruct, BOOL& bHandled)
 {
@@ -159,78 +172,154 @@ int CDetailView::OnCreate(LPCREATESTRUCT lpCreateStruct, BOOL& bHandled)
     LVariant url = strPage;
     m_pWB2->Navigate2(&url, NULL, NULL, NULL, NULL);
 
-    CComPtr<IDispatch> pDisp = NULL;
+    LComPtr<IDispatch> pDisp = NULL;
     m_pWB2->get_Document(&pDisp);
     m_pDoc = pDisp;
     return 0;
 }
 
-#endif
+void CDetailView::OnDestroy(BOOL& bHandled)
+{
+    if (NULL != m_pCurSymbol)
+        m_pCurSymbol->Release();
+    m_pCurSymbol = NULL;
+
+    Disconnect(__uuidof(DWebBrowserEvents2));
+    DestroyAxCtrl();
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#if 0
+STDMETHODIMP CDetailView::QueryInterface(REFIID iid, LPVOID* ppvObject)
+{
+    if (iid == IID_IDocHostUIHandler)
+    {
+        *ppvObject = (IDocHostUIHandler*)this;
+        return S_OK;
+    }
+    return LAxCtrl::QueryInterface(iid, ppvObject);
+}
+
+STDMETHODIMP_(ULONG) CDetailView::AddRef(void)
+{
+    return LAxCtrl::AddRef();
+}
+
+STDMETHODIMP_(ULONG) CDetailView::Release(void)
+{
+    return LAxCtrl::Release();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+STDMETHODIMP CDetailView::Invoke(
+    DISPID dispIdMember,
+    const IID &riid,
+    LCID lcid,
+    WORD wFlags,
+    DISPPARAMS *pDispParams,
+    VARIANT *pVarResult,
+    EXCEPINFO *pExcepInfo,
+    UINT *puArgErr)
+{
+    HRESULT hr = S_OK;
+    switch (dispIdMember)
+    {
+    case DISPID_BEFORENAVIGATE2:
+        {
+            BeforeNavigate2(pDispParams->rgvarg[6].pdispVal,
+                pDispParams->rgvarg[5].pvarVal, pDispParams->rgvarg[4].pvarVal,
+                pDispParams->rgvarg[3].pvarVal, pDispParams->rgvarg[2].pvarVal,
+                pDispParams->rgvarg[1].pvarVal, pDispParams->rgvarg[0].pboolVal);
+        }
+        break;
+    case DISPID_NAVIGATECOMPLETE2:
+        {
+            NavigateComplete2(pDispParams->rgvarg[1].pdispVal,
+                pDispParams->rgvarg[0].pvarVal);
+        }
+        break;
+    default:
+        hr = E_NOTIMPL;
+    }
+    return hr;
+}
 
 void CDetailView::BeforeNavigate2(
-    IDispatch *pDisp,
-    VARIANT *url,
-    VARIANT *Flags,
-    VARIANT *TargetFrameName,
-    VARIANT *PostData,
-    VARIANT *Headers,
-    VARIANT_BOOL *Cancel)
+    __in IDispatch* pDisp,
+    __in VARIANT* URL,
+    __in VARIANT* Flags,
+    __in VARIANT* TargetFrameName,
+    __in VARIANT* PostData,
+    __in VARIANT* Headers,
+    __inout VARIANT_BOOL* Cancel)
 {
-    *Cancel = VARIANT_TRUE;
-
-    if (NULL == m_pEventHandler || !m_bEnable) {
+    if (!m_pBody)
+        return;
+    if (NULL == m_pEventHandler || !m_bEnable)
+    {
+        *Cancel = VARIANT_TRUE;
         return;
     }
 
-    if (PathFileExistsW(url->bstrVal)) {
-        m_pEventHandler->OnNewFileDrop(url->bstrVal);
-    } else {
-        if (0 == wcsncmp(url->bstrVal, L"sym://", 6)) {
-            DWORD id = _wtoi(url->bstrVal + 6);
+    // 复制文件名
+    int len = lstrlenW(URL->bstrVal) + 1;
+    PWSTR pszSymbol = new WCHAR[len];
+    ZeroMemory(pszSymbol, len * sizeof(WCHAR));
+    lstrcpyW(pszSymbol, URL->bstrVal);
+
+    if (LFile::Exists(pszSymbol, FALSE))
+    {
+        m_pEventHandler->OnNewFileDrop(pszSymbol);
+    }
+    else
+    {
+        PCWSTR p = wcsstr(pszSymbol, L"sym://");
+        if (NULL != p)
+        {
+            DWORD id = _wtoi(p + 6);
             m_pEventHandler->OnSymbolChange(id);
         }
     }
+    delete [] pszSymbol;
+    *Cancel = VARIANT_TRUE;
 }
 
-void CDetailView::DocumentComplete(IDispatch *pDisp, VARIANT *URL)
+void CDetailView::NavigateComplete2(__in IDispatch* pDisp, __in VARIANT* URL)
 {
-    if (NULL != m_pEventHandler) {
-        m_pEventHandler->OnDocumentComplete();
-    }
+    // Body一定要在浏览完成后获取
+    m_pDoc->get_body(&m_pBody);
+    if (NULL != m_pEventHandler)
+        m_pEventHandler->OnNavigateComplete();
 }
-
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////
-
-// IDocHostUIHandlerDispatch
+// IDocHostUIHandler
 
 STDMETHODIMP CDetailView::ShowContextMenu(
-    DWORD dwID,
-    DWORD x, DWORD y,
-    IUnknown* pcmdtReserved,
-    IDispatch* pdispReserved,
-    HRESULT* dwRetVal)
+    __in DWORD dwID,
+    __in POINT *ppt,
+    __in IUnknown *pcmdtReserved,
+    __in IDispatch *pdispReserved)
 {
+#ifdef _DEBUG
     return E_NOTIMPL;
+#else
+    return S_OK;
+#endif
 }
 
-STDMETHODIMP CDetailView::GetHostInfo(PDWORD pdwFlags, PDWORD pdwDoubleClick)
+STDMETHODIMP CDetailView::GetHostInfo(__inout DOCHOSTUIINFO *pInfo)
 {
     return E_NOTIMPL;
 }
 
 STDMETHODIMP CDetailView::ShowUI(
-    DWORD dwID,
-    IUnknown* pActiveObject,
-    IUnknown* pCommandTarget,
-    IUnknown* pFrame,
-    IUnknown* pDoc,
-    HRESULT* dwRetVal)
+    __in DWORD dwID,
+    __in IOleInPlaceActiveObject *pActiveObject,
+    __in IOleCommandTarget *pCommandTarget,
+    __in IOleInPlaceFrame *pFrame,
+    __in IOleInPlaceUIWindow *pDoc)
 {
     return E_NOTIMPL;
 }
@@ -245,62 +334,67 @@ STDMETHODIMP CDetailView::UpdateUI(void)
     return E_NOTIMPL;
 }
 
-STDMETHODIMP CDetailView::EnableModeless(VARIANT_BOOL fEnable)
+STDMETHODIMP CDetailView::EnableModeless(__in BOOL fEnable)
 {
     return E_NOTIMPL;
 }
 
-STDMETHODIMP CDetailView::OnDocWindowActivate(VARIANT_BOOL fActivate)
+STDMETHODIMP CDetailView::OnDocWindowActivate(__in BOOL fActivate)
 {
     return E_NOTIMPL;
 }
 
-STDMETHODIMP CDetailView::OnFrameWindowActivate(VARIANT_BOOL fActivate)
+STDMETHODIMP CDetailView::OnFrameWindowActivate(__in BOOL fActivate)
 {
     return E_NOTIMPL;
 }
 
 STDMETHODIMP CDetailView::ResizeBorder(
-    long left, long top, long right, long bottom,
-    IUnknown* pUIWindow,
-    VARIANT_BOOL fFrameWindow)
+    __in LPCRECT prcBorder,
+    __in IOleInPlaceUIWindow *pUIWindow,
+    __in BOOL fRameWindow)
 {
     return E_NOTIMPL;
 }
 
 STDMETHODIMP CDetailView::TranslateAccelerator(
-    DWORD_PTR hWnd,
-    DWORD nMessage,
-    DWORD_PTR wParam,
-    DWORD_PTR lParam,
-    BSTR bstrGuidCmdGroup,
-    DWORD nCmdID,
-    HRESULT* dwRetVal)
+    __in LPMSG lpMsg,
+    __in const GUID *pguidCmdGroup,
+    __in DWORD nCmdID)
 {
     return E_NOTIMPL;
 }
 
-STDMETHODIMP CDetailView::GetOptionKeyPath(BSTR* pbstrKey, DWORD dw)
+STDMETHODIMP CDetailView::GetOptionKeyPath(
+    __out LPOLESTR *pchKey,
+    __in DWORD dw)
 {
     return E_NOTIMPL;
 }
 
-STDMETHODIMP CDetailView::GetDropTarget(IUnknown* pDropTarget, IUnknown** ppDropTarget)
+STDMETHODIMP CDetailView::GetDropTarget(
+    __in IDropTarget *pDropTarget,
+    __out IDropTarget **ppDropTarget)
 {
     return E_NOTIMPL;
 }
 
-STDMETHODIMP CDetailView::GetExternal(IDispatch** ppDispatch)
+STDMETHODIMP CDetailView::GetExternal(__out IDispatch **ppDispatch)
 {
     return E_NOTIMPL;
 }
 
-STDMETHODIMP CDetailView::TranslateUrl(DWORD dwTranslate, BSTR bstrURLIn, BSTR* pbstrURLOut)
+STDMETHODIMP CDetailView::TranslateUrl(
+    __in DWORD dwTranslate,
+    __in OLECHAR *pchURLIn,
+    __out OLECHAR **ppchURLOut)
 {
     return E_NOTIMPL;
 }
 
-STDMETHODIMP CDetailView::FilterDataObject(IUnknown* pDO, IUnknown** ppDORet)
+STDMETHODIMP CDetailView::FilterDataObject(
+    __in IDataObject *pDO,
+    __out IDataObject **ppDORet)
 {
     return E_NOTIMPL;
 }

@@ -1,14 +1,19 @@
 ///////////////////////////////////////////////////////////////////////////////
-// FileName:    MainFrame.cpp
-// Created:     2007/10/28
-// Author:      titilima
-// CopyRight:   Titi Studio (?) 2001-2007
+// 文件名：  MainFrame.cpp
+// 创建时间：2007-10-28
+// 作者：    李马
+// 版权所有：Titi Studio (?) 2001-2007
 //-----------------------------------------------------------------------------
-// Information: Main Frame Window Implementation
+// 说明：    主框架窗口实现
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "LvStd.h"
+#include <pdl_base.h>
+#include <pdl_module.h>
 #include "MainFrame.h"
+#include <pdl_com.h>
+#include <pdl_comdlg.h>
+#include <pdl_menu.h>
+#include <pdl_file.h>
 #include "ModifyDlg.h"
 #include "SettingDlg.h"
 #include "AboutDlg.h"
@@ -31,42 +36,44 @@ const TBBUTTON g_btns[TB_BTN_COUNT] = {
     { 7, ID_ABOUT,    TBSTATE_ENABLED, BTNS_AUTOSIZE, { 0, 0 }, 0, 7 }
 };
 
-CMainFrame::CMainFrame(void) : m_DnLdr(_T("Microsoft-Symbol-Server/6.9.0003.113"))
-                             , m_nHistoryPos(-1)
+CMainFrame::CMainFrame(__in LPWNDCLASS wc) : LWindow(wc)
+    , m_DnLdr(_T("Microsoft-Symbol-Server/6.9.0003.113"))
 {
     LOGFONT lf  = { 0 };
     lstrcpy(lf.lfFaceName, _T("Courier New"));
     lf.lfHeight = -12;
     lf.lfWeight = FW_NORMAL;
-    m_font.CreateFontIndirect(&lf);
+    m_hFont = ::CreateFontIndirect(&lf);
 
-    TCHAR szIni[MAX_PATH];
-    GetModuleFileName(NULL, szIni, MAX_PATH);
-    PathAppend(szIni, _T("PDBExp.ini"));
-    g_strIni = szIni;
-
-    m_nMaxHistory = GetPrivateProfileInt(_T("Setting"), _T("MaxHistory"), 20, g_strIni.c_str());
-    if (m_nMaxHistory < 10) {
+    m_ini.Open(_T("PDBExp.ini"));
+    m_nMaxHistory = m_ini.GetInt("Setting", "MaxHistory", 20);
+    if (m_nMaxHistory < 10)
         m_nMaxHistory = 10;
-    }
-    if (30 < m_nMaxHistory) {
+    if (30 < m_nMaxHistory)
         m_nMaxHistory = 30;
-    }
+    m_itCurrent = NULL;
+    m_lstHistory.Create(sizeof(EXPINFO), NULL, DestroyExpItem);
+}
+
+CMainFrame::~CMainFrame(void)
+{
+    if (NULL != m_hFont)
+        ::DeleteObject(m_hFont);
 }
 
 void CMainFrame::AddExpItem(__in IDiaSymbol* pSymbol)
 {
     EXPINFO info;
     info.pSymbol = pSymbol;
-    if (m_nHistoryPos + 1 >= m_history.size())
+    if (m_itCurrent == m_lstHistory.GetTailIterator())
     {
         // 如果是浏览末尾，则加入末尾项
-        m_history.push_back(info);
-        if ((DWORD)m_nMaxHistory < m_history.size())
+        m_lstHistory.AddTail(&info);
+        if ((DWORD)m_nMaxHistory < m_lstHistory.GetCount())
         {
             // 如果超过了最大限制，则删除最早项
-            LIterator itDel = m_history.GetHeadIterator();
-            m_history.Remove(itDel);
+            LIterator itDel = m_lstHistory.GetHeadIterator();
+            m_lstHistory.Remove(itDel);
         }
     }
     else
@@ -74,16 +81,16 @@ void CMainFrame::AddExpItem(__in IDiaSymbol* pSymbol)
         // 对于其余的情况，则删除当前浏览项后所有项
         if (NULL != m_itCurrent)
         {
-            LIterator itDel = m_history.GetTailIterator();
+            LIterator itDel = m_lstHistory.GetTailIterator();
             while (itDel != m_itCurrent)
             {
-                m_history.Remove(itDel);
-                itDel = m_history.GetTailIterator();
+                m_lstHistory.Remove(itDel);
+                itDel = m_lstHistory.GetTailIterator();
             }
         }
-        m_history.AddTail(&info);
+        m_lstHistory.AddTail(&info);
     }
-    m_itCurrent = m_history.GetTailIterator();
+    m_itCurrent = m_lstHistory.GetTailIterator();
     CheckCommandState();
 
     LMenu menu = GetMenu();
@@ -95,7 +102,7 @@ BOOL CMainFrame::cbAddEnum(IDiaSymbol* pCurSymbol, LPVOID pParam)
 {
     CMainFrame* This = (CMainFrame*)pParam;
 
-    CComBSTR b;
+    LBStr b;
     pCurSymbol->get_name(&b);
     if (0 != lstrcmpW(b, L"__unnamed")
         && CB_ERR == This->m_cbSymbols.FindString(b))
@@ -114,7 +121,7 @@ BOOL CMainFrame::cbAddTypedef(IDiaSymbol* pCurSymbol, LPVOID pParam)
 {
     CMainFrame* This = (CMainFrame*)pParam;
 
-    CComBSTR b;
+    LBStr b;
     pCurSymbol->get_name(&b);
     if (0 != lstrcmpW(b, L"__unnamed")
         && CB_ERR == This->m_cbSymbols.FindString(b))
@@ -136,8 +143,9 @@ BOOL CMainFrame::cbAddUDT(IDiaSymbol* pCurSymbol, LPVOID pParam)
     UdtKind enKind;
     pCurSymbol->get_udtKind((LPDWORD)&enKind);
 
-    CComBSTR b;
+    LBStr b;
     pCurSymbol->get_name(&b);
+
     if (0 != lstrcmpW(b, L"__unnamed") &&
         CB_ERR == This->m_cbSymbols.FindString(b))
     {
@@ -160,7 +168,7 @@ void CMainFrame::cbDumpString(LPCWSTR pszString, LPVOID pParam)
 void CMainFrame::CheckCommandState(void)
 {
     LMenu menu = GetMenu();
-    if (NULL == m_itCurrent || m_history.GetHeadIterator() == m_itCurrent)
+    if (NULL == m_itCurrent || m_lstHistory.GetHeadIterator() == m_itCurrent)
     {
         m_tb.EnableButton(ID_BACK, FALSE);
         menu.EnableItem(ID_BACK, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED);
@@ -171,7 +179,7 @@ void CMainFrame::CheckCommandState(void)
         menu.EnableItem(ID_BACK, MF_BYCOMMAND | MF_ENABLED);
     }
 
-    if (NULL == m_itCurrent || m_history.GetTailIterator() == m_itCurrent)
+    if (NULL == m_itCurrent || m_lstHistory.GetTailIterator() == m_itCurrent)
     {
         m_tb.EnableButton(ID_NEXT, FALSE);
         menu.EnableItem(ID_NEXT, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED);
@@ -233,7 +241,7 @@ void CMainFrame::DumpSymbol(__in IDiaSymbol* pSymbol)
 
 void CMainFrame::Open(__in LPCWSTR pszPdbFile)
 {
-    m_history.Clear();
+    m_lstHistory.Clear();
     m_vDetail.Clear();
     m_itCurrent = NULL;
     if (m_dia.OpenPDB(pszPdbFile))
@@ -262,6 +270,14 @@ void CMainFrame::Refresh(void)
 
 ///////////////////////////////////////////////////////////////////////////////
 
+PDL_BEGIN_MSGMAP(CMainFrame)
+    PROCESS_COMMAND(OnCommand)
+    PROCESS_CREATE(OnCreate)
+    PROCESS_DESTROY(OnDestroy)
+    PROCESS_DROPFILES(OnDropFiles)
+    PROCESS_SIZE(OnSize)
+PDL_END_MSGMAP(LWindow)
+
 int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct, BOOL& bHandled)
 {
     LAppModule *theApp = LAppModule::GetApp();
@@ -289,7 +305,13 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct, BOOL& bHandled)
     m_tb.AddString(_T("下载"));
     m_tb.AddButtons(TB_BTN_COUNT, g_btns);
     m_tb.AutoSize();
-    m_tb.GetSizeRect(&rcToolBar);
+
+    SIZE size;
+    m_tb.GetSize(&size);
+    rcToolBar.left = 0;
+    rcToolBar.top = 0;
+    rcToolBar.right = size.cx;
+    rcToolBar.bottom = size.cy;
 
     // 创建并初始化状态栏
     int nParts[] = { 200, -1 };
@@ -351,17 +373,17 @@ void CMainFrame::OnSize(UINT nType, int cx, int cy, BOOL& bHandled)
 {
     if (SIZE_MINIMIZED != nType)
     {
-        RECT rcToolBar, rcStatus;
-        m_tb.GetSizeRect(&rcToolBar);
-        m_tb.SetWindowPos(NULL, 0, 0, cx, rcToolBar.bottom,
-            SWP_NOMOVE | SWP_NOZORDER);
+        RECT rcStatus = { 0 };
+        SIZE size;
+        m_tb.GetSize(&size);
+        m_tb.SetWindowPos(NULL, 0, 0, cx, size.cy, SWP_NOMOVE | SWP_NOZORDER);
 
         m_status.GetClientRect(&rcStatus);
         m_status.SetWindowPos(NULL, 0, cy - rcStatus.bottom,
             cx, rcStatus.bottom, SWP_NOZORDER);
 
-        m_split.SetWindowPos(NULL, 0, rcToolBar.bottom,
-            cx, cy - rcStatus.bottom - rcToolBar.bottom,
+        m_split.SetWindowPos(NULL, 0, size.cy,
+            cx, cy - rcStatus.bottom - size.cy,
             SWP_NOZORDER | SWP_NOMOVE | SWP_NOREDRAW);
         m_split.Invalidate();
     }
@@ -402,12 +424,12 @@ void CMainFrame::OnAbout(void)
 
 void CMainFrame::OnBack(void)
 {
-    if (m_itCurrent != m_history.GetHeadIterator())
+    if (m_itCurrent != m_lstHistory.GetHeadIterator())
     {
-        m_history.GetPrevIterator(&m_itCurrent);
+        m_itCurrent = m_lstHistory.GetPrevIterator(m_itCurrent);
 
         EXPINFO info;
-        m_history.GetAt(m_itCurrent, &info);
+        m_lstHistory.GetAt(m_itCurrent, &info);
         DumpSymbol(info.pSymbol);
     }
     CheckCommandState();
@@ -417,7 +439,7 @@ void CMainFrame::OnCopy(void)
 {
     // TODO: 如何为IWebBrowser2实现默认的复制？
     HWND hWnd = ::GetFocus();
-    TCHAR strClass[MAX_PATH];
+	TCHAR strClass[MAX_PATH] = { 0 };
     ::GetClassName(hWnd, strClass, MAX_PATH);
 
     if (0 == lstrcmp(strClass, _T("Internet Explorer_Server")))
@@ -428,7 +450,9 @@ void CMainFrame::OnCopy(void)
 
 void CMainFrame::OnCopyAll(void)
 {
-    m_vDetail.CopyAll();
+	m_vDetail.CopyAll();
+	//MessageBox(_T("所有文本已复制到剪贴板。"), _T("PDB Explorer"),
+	//	MB_ICONINFORMATION);
 }
 
 void CMainFrame::OnExit(void)
@@ -442,18 +466,18 @@ void CMainFrame::OnModify(void)
     m_ini.GetString("Setting", "Template", L"", &strTemplate);
 
     EXPINFO info;
-    m_history.GetAt(m_itCurrent, &info);
+    m_lstHistory.GetAt(m_itCurrent, &info);
     CModifyDlg dlg(&m_dia, info.pSymbol);
     dlg.DoModal(m_hWnd, (LPARAM)strTemplate.Detach());
 }
 
 void CMainFrame::OnNext(void)
 {
-    if (m_itCurrent != m_history.GetTailIterator())
+    if (m_itCurrent != m_lstHistory.GetTailIterator())
     {
-        m_history.GetNextIterator(&m_itCurrent);
+        m_itCurrent = m_lstHistory.GetNextIterator(m_itCurrent);
         EXPINFO info;
-        m_history.GetAt(m_itCurrent, &info);
+        m_lstHistory.GetAt(m_itCurrent, &info);
         DumpSymbol(info.pSymbol);
     }
     CheckCommandState();
@@ -473,7 +497,7 @@ void CMainFrame::OnOk(void)
 
 void CMainFrame::OnOpen(void)
 {
-    LFileDialogW dlg(TRUE, L"*.pdb\0*.pdb\0\0", L"*.pdb");
+    LFileDialogW dlg(TRUE, L"(*.pdb | *.exe | *.dll)\0*.pdb;*.exe;*.dll\0\0", L"(*.pdb | *.exe | *.dll)");
     if (dlg.DoModal(m_hWnd))
         Open(dlg.m_szFileName);
 }
@@ -486,7 +510,7 @@ void CMainFrame::OnSave(void)
 
     LFileDialogW dlg(FALSE, L"*.txt\0*.txt\0\0", NULL);
     IDiaSymbol* pSymbol = m_vDetail.GetCurrentSymbol();
-    CComBSTR bsName;
+    LBStr bsName;
     pSymbol->get_name(&bsName);
     wsprintfW(dlg.m_szFileName, L"%s.txt", (PCWSTR)bsName);
 

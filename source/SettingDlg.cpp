@@ -1,41 +1,79 @@
 ///////////////////////////////////////////////////////////////////////////////
-// FileName:    SettingDlg.cpp
-// Created:     2007/11/12
-// Author:      titilima
-// CopyRight:   Titi Studio (?) 2001-2013
+// 文件名：  SettingDlg.cpp
+// 创建时间：2007-11-12
+// 作者：    李马
+// 版权所有：Titi Studio (?) 2001-2007
 //-----------------------------------------------------------------------------
-// Information: Settings Dialog
+// 说明：    设置对话框实现
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "LvStd.h"
+#include <pdl_base.h>
 #include "SettingDlg.h"
-#include <atldlgs.h>
+#include <pdl_comdlg.h>
 
-static const TCHAR szSec_Setting[] = _T("Setting");
-static const TCHAR szKey_Template[] = _T("Template");
-static const TCHAR szKey_MaxHistory[] = _T("MaxHistory");
+#include "resource.h"
 
-CSettingDlg::CSettingDlg(void)
+CSettingDlg::CSettingDlg(__in LIniParser* pIni) : LDialog(IDD_DLG_SETTING)
 {
-    // Nothing
+    m_pIni = pIni;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void CSettingDlg::OnClose(void)
+PDL_BEGIN_MSGMAP(CSettingDlg)
+    PROCESS_CLOSE(OnClose)
+    PROCESS_COMMAND(OnCommand)
+    PROCESS_INITDIALOG(OnInitDialog)
+PDL_END_MSGMAP(LDialog)
+
+void CSettingDlg::OnCommand(
+    WORD wNotifyCode,
+    WORD wID,
+    HWND hWndCtrl,
+    BOOL& bHandled)
+{
+    switch (wID)
+    {
+    case IDCANCEL:      OnClose(bHandled);      break;
+    case IDOK:          OnOk();                 break;
+    case IDC_BTN_OPEN:  OnOpen();               break;
+    default:
+        bHandled = FALSE;
+    }
+}
+
+void CSettingDlg::OnOk(void)
+{
+    TCHAR str[MAX_PATH];
+    GetDlgItemText(IDC_EDT_TEMPLATE, str, MAX_PATH);
+    if (_T('\0') != str[0])
+        m_pIni->WriteString("Setting", "Template", str);
+    m_pIni->WriteInt("Setting", "MaxHistory",
+        GetDlgItemInt(IDC_EDT_EXPCNT, NULL, FALSE));
+    EndDialog(IDOK);
+}
+
+void CSettingDlg::OnOpen(void)
+{
+    LFileDialog dlg(TRUE, _T("*.htm;*.html\0*.htm;*.html\0\0"));
+    if (dlg.DoModal(m_hWnd))
+        SetDlgItemText(IDC_EDT_TEMPLATE, dlg.m_szFileName);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
+void CSettingDlg::OnClose(BOOL& bHandled)
 {
     EndDialog(IDCANCEL);
 }
 
-BOOL CSettingDlg::OnInitDialog(CWindow wndFocus, LPARAM lInitParam)
+BOOL CSettingDlg::OnInitDialog(HWND hCtrlFocus, LPARAM lParam, BOOL& bHandled)
 {
-    DoDataExchange();
-
-    TCHAR str[MAX_PATH];
-    GetPrivateProfileString(szSec_Setting, szKey_Template, _T(""), str, MAX_PATH, g_strIni.c_str());
+    LString str;
+    m_pIni->GetString("Setting", "Template", _T(""), &str);
     SetDlgItemText(IDC_EDT_TEMPLATE, str);
 
-    int cnt = GetPrivateProfileInt(szSec_Setting, szKey_MaxHistory, 20, g_strIni.c_str());
+    int cnt = m_pIni->GetInt("Setting", "MaxHistory", 20);
     if (cnt < 10)
         cnt = 10;
     if (30 < cnt)
@@ -48,27 +86,4 @@ BOOL CSettingDlg::OnInitDialog(CWindow wndFocus, LPARAM lInitParam)
     m_spin.SetPos32(cnt);
 
     return FALSE;
-}
-
-void CSettingDlg::OnOKCancel(UINT, int nID, CWindow)
-{
-    if (IDOK == nID) {
-        TCHAR str[MAX_PATH];
-        GetDlgItemText(IDC_EDT_TEMPLATE, str, MAX_PATH);
-        if (_T('\0') != str[0]) {
-            WritePrivateProfileString(szSec_Setting, szKey_Template, str, g_strIni.c_str());
-        }
-
-        wsprintf(str, _T("%d"), GetDlgItemInt(IDC_EDT_EXPCNT, NULL, FALSE));
-        WritePrivateProfileString(szSec_Setting, szKey_MaxHistory, str, g_strIni.c_str());
-    }
-    EndDialog(nID);
-}
-
-void CSettingDlg::OnOpen(UINT, int, CWindow)
-{
-    CFileDialog dlg(TRUE, NULL, NULL, OFN_HIDEREADONLY, _T("*.htm;*.html\0*.htm;*.html\0\0"));
-    if (dlg.DoModal(m_hWnd)) {
-        SetDlgItemText(IDC_EDT_TEMPLATE, dlg.m_szFileName);
-    }
 }

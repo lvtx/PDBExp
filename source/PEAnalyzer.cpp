@@ -1,13 +1,13 @@
 ///////////////////////////////////////////////////////////////////////////////
-// FileName:    PEAnalyzer.cpp
-// Created:     2008/10/30
-// Author:      titilima
-// CopyRight:   Titi Studio (?) 2001-2013
+// 文件名：  PEAnalyzer.cpp
+// 创建时间：2008-10-30
+// 作者：    李马
+// 版权所有：Titi Studio (?) 2001-2008
 //-----------------------------------------------------------------------------
-// Information: PE Analyzer
+// 说明：    PE 分析器实现
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "LvStd.h"
+#include <pdl_base.h>
 #include "PEAnalyzer.h"
 
 typedef struct _tagCV_NB10 {
@@ -24,14 +24,6 @@ typedef struct _tagCV_RSDS {
     DWORD dwAge;
     CHAR pdb[1];
 } CV_RSDS, *PCV_RSDS;
-
-template <typename T>
-inline T offset_cast(PVOID base, int offset)
-{
-    PBYTE pb = reinterpret_cast<PBYTE>(base);
-    return reinterpret_cast<T>(pb + offset);
-}
-
 
 CPEAnalyzer::CPEAnalyzer(void)
 {

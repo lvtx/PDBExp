@@ -1,37 +1,30 @@
 ///////////////////////////////////////////////////////////////////////////////
-// FileName:    AboutDlg.h
-// Created:     2007/11/12
-// Author:      titilima
-// CopyRight:   Titi Studio (?) 2001-2013
+// 文件名：  AboutDlg.h
+// 创建时间：2007-11-12
+// 作者：    李马
+// 版权所有：Titi Studio (?) 2001-2007
 //-----------------------------------------------------------------------------
-// Information: About Dialog
+// 说明：    关于对话框
 ///////////////////////////////////////////////////////////////////////////////
 
 #pragma once
 
-#include <atlctrlx.h>
+#include <pdl_window.h>
+#include <pdl_ctrlext.h>
 
-class CAboutDlg : public CDialogImpl<CAboutDlg>, public CWinDataExchange<CAboutDlg>
+class CAboutDlg : public LDialog
 {
 public:
     CAboutDlg(void);
-    enum { IDD = IDD_DLG_ABOUT };
-public:
-    BEGIN_MSG_MAP_EX(CAboutDlg)
-        MSG_WM_LBUTTONDOWN(OnLButtonDown)
-        MSG_WM_INITDIALOG(OnInitDialog)
-
-        COMMAND_ID_HANDLER_EX(IDCANCEL, OnOKCancel)
-        COMMAND_ID_HANDLER_EX(IDOK, OnOKCancel)
-    END_MSG_MAP()
-    BEGIN_DDX_MAP(CAboutDlg)
-        DDX_CONTROL(IDC_ST_HOMEPAGE, m_stHome)
-    END_DDX_MAP()
 private:
-    BOOL OnInitDialog(CWindow wndFocus, LPARAM lInitParam);
-    void OnLButtonDown(UINT nFlags, CPoint point);
-    void OnMouseMove(UINT nFlags, CPoint point);
-    void OnOKCancel(UINT uNotifyCode, int nID, CWindow wndCtl);
+    PDL_DECLARE_MSGMAP();
+    DECLARE_COMMAND_HANDLER(OnCommand);
+    DECLARE_INITDIALOG_HANDLER(OnInitDialog);
+    DECLARE_LBUTTONDOWN_HANDLER(OnLButtonDown);
+    void OnHomePage(void);
+    void OnMail(void);
+    void OnOk(void);
 private:
-    CHyperLink m_stHome;
+    LHyperLink m_stHome;
+    LHyperLink m_stMail;
 };

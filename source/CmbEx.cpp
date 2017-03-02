@@ -1,72 +1,100 @@
 ///////////////////////////////////////////////////////////////////////////////
-// FileName:    CmbEx.cpp
-// Created:     2007/10/28
-// Author:      titilima
-// CopyRight:   Titi Studio (?) 2001-2007
+// 文件名：  CmbEx.cpp
+// 创建时间：2007-10-28
+// 作者：    李马
+// 版权所有：Titi Studio (?) 2001-2007
 //-----------------------------------------------------------------------------
-// Information: PDB Explorer ComboBox
+// 说明：    PDB Explorer ComboBox实现
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "LvStd.h"
+#include <pdl_base.h>
 #include "CmbEx.h"
-#include "Utilities.h"
 
-typedef CWindowImpl<CCmbEx, CComboBox> BaseComboBox;
+PDL_DEFINE_WINCLASS(CLbEx)
 
-CCmbEx::CCmbEx(void) : m_list(this, 1)
+CLbEx& CLbEx::operator=(__in HWND hWnd)
 {
-    // Nothing
+    LListBox::Attach(hWnd);
+    LSubclassWnd::SubclassWindow(hWnd);
+    return *this;
 }
 
-BOOL CCmbEx::Create(DWORD dwStyle, LPRECT lpRect, HWND hWndParent, UINT nID)
+PDL_BEGIN_MSGMAP(CLbEx)
+    PROCESS_LBUTTONDBLCLK(OnLButtonDblClk)
+PDL_END_MSGMAP(LSubclassWnd)
+
+void CLbEx::OnLButtonDblClk(UINT uFlags, int x, int y, BOOL& bHandled)
 {
-    if (NULL == BaseComboBox::Create(hWndParent, *lpRect, NULL, dwStyle, 0, nID)) {
-        ATLASSERT(false);
-        return FALSE;
-    }
-
-    m_list.SubclassWindow(FindWindowEx(m_hWnd, NULL, _T("ComboLBox"), NULL));
-    m_edit = FindWindowEx(m_hWnd, NULL, WC_EDIT, NULL);
-
-    return TRUE;
+    ::SendMessage(GetParent(), WM_COMMAND, IDOK, (LPARAM)m_hWnd);
 }
 
-int CCmbEx::FindString(PCTSTR lpszString)
+PDL_DEFINE_WINCLASS(CCmbEx)
+
+BOOL CCmbEx::Create(
+    __in PCTSTR lpWindowName,
+    __in DWORD dwStyle,
+    __in LPCRECT lpRect,
+    __in HWND hWndParent,
+    __in UINT nID,
+    __in PVOID lpParam)
 {
-    // CComboBoxT::FindString will create the item if not found.
-    // So use CListBoxT::FindString instead.
+    BOOL bRet = LComboBox::Create(lpWindowName, dwStyle, lpRect, hWndParent,
+        nID, lpParam);
+    LSubclassWnd::SubclassWindow(m_hWnd);
+
+    m_list = GetListBox();
+    m_edit = GetEdit();
+
+    return bRet;
+}
+
+int CCmbEx::FindString(__in LPCTSTR lpszString)
+{
+    // FindString调用ListBox的实现，因为系统默认的函数竟会自动创建找不到的项目
     return m_list.FindString(0, lpszString);
 }
 
-///////////////////////////////////////////////////////////////////////////////
+PDL_BEGIN_MSGMAP(CCmbEx)
+    PROCESS_COMMAND(OnCommand)
+    PROCESS_KEYDOWN(OnKeyDown)
+PDL_END_MSGMAP(LSubclassWnd)
 
-void CCmbEx::OnEditUpdate(UINT, int, CWindow wndCtl)
+void CCmbEx::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags, BOOL& bHandled)
 {
-    ATLASSERT(m_edit.m_hWnd == wndCtl.m_hWnd);
+    if (VK_RETURN == nChar)
+        ::SendMessage(GetParent(), WM_COMMAND, IDOK, (LPARAM)m_hWnd);
+    else
+        bHandled = FALSE;
+}
 
-    String str;
-    int nLength = Window::GetText(m_edit, &str);
-    if (nLength > 0) {
-        int idx = FindString(str.c_str());
-        if (CB_ERR != idx) {
-            // Must use CListBoxT::SetCurSel,
-            // because CComboBoxT::SetCurSel will change edit's text.
-            m_list.SetCurSel(idx);
-            m_edit.SetSel(nLength, -1);
+void CCmbEx::OnCommand(
+    WORD wNotifyCode,
+    WORD wID,
+    HWND hWndCtrl,
+    BOOL& bHandled)
+{
+    if (EN_UPDATE == wNotifyCode)
+    {
+        LString str;
+        m_edit.GetWindowText(&str);
+        int len = str.GetLength();
+        if (0 < len)
+        {
+            int idx = FindString(str);
+            if (CB_ERR != idx)
+            {
+                // 必须借助ListBox实现，因为CB_SETCURSEL会影响Edit的行为
+                m_list.SetCurSel(idx);
+                m_edit.SetSel(len, -1);
+            }
         }
     }
-}
-
-void CCmbEx::OnKeyDown(UINT nChar, UINT, UINT)
-{
-    if (VK_RETURN == nChar) {
-        GetParent().SendMessage(WM_COMMAND, IDOK, reinterpret_cast<LPARAM>(m_hWnd));
-    } else {
-        SetMsgHandled(FALSE);
+    else if (IDOK == wID)
+    {
+        ::SendMessage(GetParent(), WM_COMMAND, IDOK, (LPARAM)m_hWnd);
     }
-}
-
-void CCmbEx::OnListLButtonDblClk(UINT, CPoint)
-{
-    GetParent().SendMessage(WM_COMMAND, IDOK, (LPARAM)m_hWnd);
+    else
+    {
+        bHandled = FALSE;
+    }
 }
