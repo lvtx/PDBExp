@@ -1,10 +1,10 @@
 PDB Explorer 自述文档
 
-版本：v1.10.0217(Unicode)
+版本：v1.10.0226(Unicode)
 适用平台：Win2K/WinXP
-版权所有：Titi 工作室
-作者：李马
-电子邮件：titilima@163.com
+版权所有：Titi 工作室 / Kemp 工作室
+作者：李马 / lvtx
+电子邮件：titilima@163.com / wiflvtx@gmail.com
 作者主页：http://www.titilima.cn
 
 简介
@@ -33,6 +33,10 @@ A: 第一个数值是该成员相对 struct 的偏移，第二个数值是该成员的大小。
 
 更新记录
 
+* 2017.03.03 - 1.10.0226
+  修正了 enum 成员 分隔符 错误 bug。
+  修正了 代码复制 功能异常 bug。
+  修正了 枚举类型显示枚举值错误的 bug。
 * 2009.07.27 - 1.10.0217
   增加了对 typedef 和 class 的支持。
   下载 PDB 增加了对 NB10 签名的支持。
